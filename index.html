@@ -846,22 +846,33 @@
             const rawName = document.getElementById("student-name").value.trim();
             const rawId = document.getElementById("student-id").value.trim();
 
-            let foundStudentName = rawName;
-            if (appData.allowedStudentIds) {
-                const matched = appData.allowedStudentIds.find(item => String(item.id).trim() === String(rawId).trim());
-                if (matched && matched.name && (!rawName || rawName === "অজ্ঞাত শিক্ষার্থী")) {
-                    foundStudentName = matched.name;
-                }
-            }
-
-            currentStudent.name = foundStudentName !== "" ? foundStudentName : "অজ্ঞাত শিক্ষার্থী";
-            currentStudent.id = rawId;
-            
             const exam = appData.exams[activeExamKey];
             if(!exam || exam.questions.length === 0) {
                 showModal("ত্রুটি", "এই পরীক্ষায় কোনো প্রশ্ন নেই!");
                 return;
             }
+
+            let matchedStudent = null;
+            if (!exam.isFree) {
+                if (!appData.allowedStudentIds || appData.allowedStudentIds.length === 0) {
+                    showModal("সতর্কতা", "শিক্ষক প্যানেলে কোনো অনুমোদিত স্টুডেন্ট আইডি যুক্ত করা হয়নি।");
+                    return;
+                }
+
+                matchedStudent = appData.allowedStudentIds.find(item => String(item.id).trim() === String(rawId).trim());
+                if (!matchedStudent) {
+                    showModal("অনুমতি নেই", "আপনার স্টুডেন্ট আইডিটি এই পরীক্ষার জন্য অনুমোদিত নয়। সঠিক আইডি দিয়ে চেষ্টা করুন।");
+                    return;
+                }
+            }
+
+            let foundStudentName = rawName;
+            if (matchedStudent && matchedStudent.name) {
+                foundStudentName = matchedStudent.name;
+            }
+
+            currentStudent.name = foundStudentName !== "" ? foundStudentName : "অজ্ঞাত শিক্ষার্থী";
+            currentStudent.id = rawId;
 
             studentAnswers = new Array(exam.questions.length).fill(null);
             timeRemaining = exam.timerMinutes * 60;
@@ -1478,7 +1489,7 @@
         function handleChangePassword(e) {
             e.preventDefault();
             const curr = document.getElementById("curr-pass-input").value;
-            const newP = document.getElementById("new-pass-input").value;
+            const newP = document.getElementById("new-pass-input2").value || document.getElementById("new-pass-input").value;
 
             if (curr === appData.teacherPass) {
                 appData.teacherPass = newP;
