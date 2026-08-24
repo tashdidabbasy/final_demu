@@ -29,7 +29,7 @@
 
     <!-- Firebase SDK Integration -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { 
             getFirestore, 
             collection, 
@@ -41,13 +41,13 @@
             onSnapshot,
             query,
             where 
-        } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { 
             getAuth, 
             GoogleAuthProvider, 
             signInWithPopup, 
             signOut 
-        } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDN9JjLBZ2DA5kqokfmSU4R9rabP9zrbNI",
@@ -685,6 +685,9 @@
                 try { 
                     const parsed = JSON.parse(saved);
                     if(parsed.teacherPass) appData.teacherPass = parsed.teacherPass;
+                    if(parsed.subjects) appData.subjects = parsed.subjects;
+                    if(parsed.exams) appData.exams = parsed.exams;
+                    if(parsed.allowedStudentIds) appData.allowedStudentIds = parsed.allowedStudentIds;
                 } catch(e){}
             }
 
@@ -710,6 +713,9 @@
                         } else {
                             saveDataToFirebase();
                         }
+                        refreshUIState();
+                    }, (err) => {
+                        console.warn("Firestore listener warning (using local data fallback):", err);
                         refreshUIState();
                     });
                 } else {
@@ -1069,6 +1075,9 @@
                             </tr>
                         `).join("");
                     }
+                }, (err) => {
+                    console.warn("Leaderboard error:", err);
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">ডেটা লোড করতে সমস্যা হয়েছে।</td></tr>`;
                 });
             }
 
@@ -1427,6 +1436,9 @@
                             `;
                         }).join("");
                     }
+                }, (err) => {
+                    console.warn("Submissions error:", err);
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">ডেটা লোড করতে সমস্যা হয়েছে।</td></tr>`;
                 });
             }
         }
