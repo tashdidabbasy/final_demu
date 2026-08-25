@@ -29,48 +29,40 @@
 
     <!-- Firebase SDK Integration -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { 
-            getFirestore, 
-            collection, 
-            getDocs, 
-            addDoc, 
-            doc, 
-            setDoc, 
-            deleteDoc, 
-            onSnapshot,
-            query,
-            where 
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { 
-            getAuth, 
-            GoogleAuthProvider, 
-            signInWithPopup, 
-            signOut 
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+  // Firestore এবং Server Timestamp ইমপোর্ট করা হলো
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDN9JjLBZ2DA5kqokfmSU4R9rabP9zrbNI",
-            authDomain: "testone-18d5c.firebaseapp.com",
-            databaseURL: "https://testone-18d5c-default-rtdb.firebaseio.com",
-            projectId: "testone-18d5c",
-            storageBucket: "testone-18d5c.firebasestorage.app",
-            messagingSenderId: "66333783056",
-            appId: "1:66333783056:web:699e4cce4b64640d7e4695"
-        };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBrtWfKWd_HtaOUtV7uWBrS1D7eOltcOwA",
+    authDomain: "demoproject01-54df0.firebaseapp.com",
+    projectId: "demoproject01-54df0",
+    storageBucket: "demoproject01-54df0.firebasestorage.app",
+    messagingSenderId: "279987467751",
+    appId: "1:279987467751:web:9b08866255201557c33942",
+    measurementId: "G-FEF29BCW9S"
+  };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const googleProvider = new GoogleAuthProvider();
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
 
-        window.db = db;
-        window.auth = auth;
-        window.googleProvider = googleProvider;
-        window.signInWithPopup = signInWithPopup;
-        window.signOut = signOut;
-        window.fbFS = { collection, getDocs, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, where };
-    </script>
+  // পরীক্ষা জমা নেওয়া বা শুরু করার ফাংশন
+  async function submitExam(userId, answers) {
+    try {
+      // ডাটাবেসে ক্লায়েন্ট টাইম না পাঠিয়ে Firebase Server-এর সময় পাঠানো হচ্ছে
+      await addDoc(collection(db, "exam_submissions"), {
+        userId: userId,
+        answers: answers,
+        submittedAt: serverTimestamp() // এটি গুগল সার্ভারের আসল সময় নিবে
+      });
+      console.log("Exam submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting exam: ", error);
+    }
+  }
+</script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col overflow-x-hidden">
 
@@ -311,6 +303,17 @@
                             <label class="block text-[11px] font-medium text-slate-600 mb-1">সময় (মিনিট)</label>
                             <input type="number" id="new-exam-timer-input" min="1" max="120" value="10" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white">
                         </div>
+                        
+                        <!-- NEW: Schedule Controls -->
+                        <div class="sm:col-span-1.5">
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">পরীক্ষা শুরুর তারিখ ও সময় <span class="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                            <input type="datetime-local" id="new-exam-start-time" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white">
+                        </div>
+                        <div class="sm:col-span-1.5">
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">উত্তর প্রকাশের তারিখ ও সময় <span class="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                            <input type="datetime-local" id="new-exam-answer-time" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white">
+                        </div>
+
                         <div class="sm:col-span-3 flex items-center gap-2 pt-1">
                             <input type="checkbox" id="new-exam-is-free" class="w-4 h-4 text-indigo-600 rounded border-slate-300">
                             <label for="new-exam-is-free" class="text-xs font-medium text-slate-700">ফ্রি পরীক্ষা (আইডি বা নামের কড়াকড়ি ছাড়াই)</label>
@@ -655,6 +658,8 @@
                     title: "বাংলা ব্যাকরণ ও সাহিত্য - সেট ০১",
                     timerMinutes: 10,
                     isFree: false,
+                    startTime: "",
+                    answerReleaseTime: "",
                     questions: [
                         {
                             q: "‘চর্যাপদ’ কোন ছন্দে রচিত?",
@@ -835,6 +840,18 @@
                 return;
             }
             const exam = appData.exams[activeExamKey];
+
+            // Start Time Validation Check
+            if (exam.startTime) {
+                const startTime = new Date(exam.startTime);
+                const now = new Date();
+                if (now < startTime) {
+                    const formattedDate = startTime.toLocaleString('bn-BD', { dateStyle: 'full', timeStyle: 'short' });
+                    showModal("পরীক্ষা শুরু হয়নি", `এই পরীক্ষাটি নির্ধারিত সময় অনুযায়ী ${formattedDate} তারিখে শুরু হবে।`);
+                    return;
+                }
+            }
+
             document.getElementById("reg-exam-title-display").innerText = exam.title;
 
             const idInput = document.getElementById("student-id");
@@ -1007,10 +1024,26 @@
             document.getElementById("res-incorrect").innerText = incorrect;
             document.getElementById("res-score").innerText = score;
 
+            // Reset review section on finish
+            document.getElementById("review-container").classList.add("hidden");
+
             switchView("result");
         }
 
         function toggleReviewSection() {
+            const exam = appData.exams[activeExamKey];
+
+            // Answer Release Time Validation Check
+            if (exam && exam.answerReleaseTime) {
+                const releaseTime = new Date(exam.answerReleaseTime);
+                const now = new Date();
+                if (now < releaseTime) {
+                    const formattedDate = releaseTime.toLocaleString('bn-BD', { dateStyle: 'full', timeStyle: 'short' });
+                    showModal("উত্তর প্রকাশ হয়নি", `এই পরীক্ষার প্রশ্নের সমাধান ও বিস্তারিত ব্যাখ্যা ${formattedDate} তারিখে প্রকাশ করা হবে।`);
+                    return;
+                }
+            }
+
             const container = document.getElementById("review-container");
             container.classList.toggle("hidden");
             if (!container.classList.contains("hidden")) {
@@ -1150,6 +1183,9 @@
             const name = document.getElementById("new-exam-name-input").value.trim();
             const timer = parseInt(document.getElementById("new-exam-timer-input").value);
             const isFree = document.getElementById("new-exam-is-free").checked;
+            
+            const startTime = document.getElementById("new-exam-start-time").value;
+            const answerTime = document.getElementById("new-exam-answer-time").value;
 
             const key = `exam-${Date.now()}`;
             appData.exams[key] = {
@@ -1158,6 +1194,8 @@
                 title: `${subject} - ${name}`,
                 timerMinutes: timer,
                 isFree: isFree,
+                startTime: startTime || "",
+                answerReleaseTime: answerTime || "",
                 questions: []
             };
 
@@ -1178,11 +1216,21 @@
             container.innerHTML = keys.map(k => {
                 const ex = appData.exams[k];
                 const freeBadge = ex.isFree ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold ml-1">ফ্রি</span>` : `<span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold ml-1">${ex.subject}</span>`;
+                
+                let scheduleInfo = '';
+                if(ex.startTime || ex.answerReleaseTime) {
+                    scheduleInfo = `<div class="text-[11px] text-slate-500 mt-1 space-y-0.5">`;
+                    if(ex.startTime) scheduleInfo += `<div>⏰ শুরু: ${new Date(ex.startTime).toLocaleString('bn-BD')}</div>`;
+                    if(ex.answerReleaseTime) scheduleInfo += `<div>🔑 উত্তর প্রকাশ: ${new Date(ex.answerReleaseTime).toLocaleString('bn-BD')}</div>`;
+                    scheduleInfo += `</div>`;
+                }
+
                 return `
                     <div class="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div>
                             <div>${freeBadge}</div>
                             <h4 class="font-bold text-slate-800 text-xs sm:text-sm mt-1">${ex.title} (${ex.questions.length}টি প্রশ্ন, ${ex.timerMinutes} মি.)</h4>
+                            ${scheduleInfo}
                         </div>
                         <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                             <button onclick="selectExamForQuestionAdd('${k}')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-xs font-medium transition">প্রশ্ন যোগ/এডিট</button>
